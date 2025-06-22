@@ -307,6 +307,13 @@ class FrmEntriesController {
 	}
 
 	public static function hidden_columns( $result ) {
+		if ( ! is_array( $result ) ) {
+			// Force an unexpected value to be an array.
+			// Since $result is a filtered option and gets saved to the database, it's possible it could be a string.
+			// Since this code expects an array it would break with a "Uncaught Error: [] operator not supported for strings" error.
+			$result = array();
+		}
+
 		$form_id = FrmForm::get_current_form_id();
 
 		$hidden = self::user_hidden_columns_for_form( $form_id, $result );

@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class FrmSettings {
     public $option_name = 'frm_options';
     public $menu;

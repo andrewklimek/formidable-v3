@@ -607,6 +607,10 @@ class FrmFieldsHelper {
 	 * @param string $value
 	 */
 	public static function sanitize_embedded_shortcodes( $atts, &$value ) {
+		if ( is_null( $value ) ) {
+			$value = '';
+			return;
+		}
 		$atts['value'] = $value;
 		$should_sanitize = apply_filters( 'frm_sanitize_shortcodes', true, $atts );
 		if ( $should_sanitize ) {

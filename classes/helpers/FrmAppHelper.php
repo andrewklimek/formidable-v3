@@ -924,8 +924,8 @@ class FrmAppHelper {
 	public static function check_selected( $values, $current ) {
 		$values = self::recursive_function_map( $values, 'trim' );
 		$values = self::recursive_function_map( $values, 'htmlspecialchars_decode' );
-		$current = htmlspecialchars_decode( trim( $current ) );
-
+		$current = is_null( $current ) ? '' : htmlspecialchars_decode( trim( $current ) );
+		
 		return ( is_array( $values ) && in_array( $current, $values ) ) || ( ! is_array( $values ) && $values == $current );
 	}
 
@@ -947,7 +947,7 @@ class FrmAppHelper {
 				}
 			}
 		} else {
-			$value = call_user_func( $function, $value );
+			$value = is_null( $value ) && in_array( $function, [ 'trim', 'strlen' ], true ) ? '' : call_user_func( $function, $value );
 		}
 
 		return $value;
@@ -1663,8 +1663,8 @@ class FrmAppHelper {
 	}
 
 	public static function maybe_json_decode( $string ) {
-		if ( is_array( $string ) ) {
-            return $string;
+		if ( is_array( $string ) || is_null( $string ) ) {
+			return $string;
         }
 
 		$new_string = json_decode( $string, true );
