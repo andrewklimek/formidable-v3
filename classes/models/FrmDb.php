@@ -1,41 +1,45 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+	die( 'You are not allowed to call this page directly.' );
+}
 
 class FrmDb {
-    public $fields;
-    public $forms;
-    public $entries;
-    public $entry_metas;
+	public $fields;
+	public $forms;
+	public $entries;
+	public $entry_metas;
 
-    public function __construct() {
+	public function __construct() {
 		if ( ! defined( 'ABSPATH' ) ) {
 			die( 'You are not allowed to call this page directly.' );
 		}
 
 		_deprecated_function( __METHOD__, '2.05.06', 'FrmMigrate' );
-        global $wpdb;
-        $this->fields         = $wpdb->prefix . 'frm_fields';
-        $this->forms          = $wpdb->prefix . 'frm_forms';
-        $this->entries        = $wpdb->prefix . 'frm_items';
-        $this->entry_metas    = $wpdb->prefix . 'frm_item_metas';
-    }
+		global $wpdb;
+		$this->fields      = $wpdb->prefix . 'frm_fields';
+		$this->forms       = $wpdb->prefix . 'frm_forms';
+		$this->entries     = $wpdb->prefix . 'frm_items';
+		$this->entry_metas = $wpdb->prefix . 'frm_item_metas';
+	}
 
-    /**
-     * Change array into format $wpdb->prepare can use
+	/**
+	 * Change array into format $wpdb->prepare can use
 	 *
 	 * @param array $args
 	 * @param string $starts_with
-     */
-    public static function get_where_clause_and_values( &$args, $starts_with = ' WHERE ' ) {
+	 */
+	public static function get_where_clause_and_values( &$args, $starts_with = ' WHERE ' ) {
 		if ( empty( $args ) ) {
 			// add an arg to prevent prepare from failing
 			$args = array(
-				'where' => $starts_with . '1=%d',
+				'where'  => $starts_with . '1=%d',
 				'values' => array( 1 ),
 			);
-			return;
-        }
 
-		$where = '';
+			return;
+		}
+
+		$where  = '';
 		$values = array();
 
 		if ( is_array( $args ) ) {
@@ -44,26 +48,26 @@ class FrmDb {
 		}
 
 		$args = compact( 'where', 'values' );
-    }
+	}
 
-    /**
+	/**
 	 * @param array $args
-     * @param string $base_where
-     * @param string $where
+	 * @param string $base_where
+	 * @param string $where
 	 * @param array $values
-     */
-    public static function parse_where_from_array( $args, $base_where, &$where, &$values ) {
-        $condition = ' AND';
-        if ( isset( $args['or'] ) ) {
-            $condition = ' OR';
-            unset( $args['or'] );
-        }
+	 */
+	public static function parse_where_from_array( $args, $base_where, &$where, &$values ) {
+		$condition = ' AND';
+		if ( isset( $args['or'] ) ) {
+			$condition = ' OR';
+			unset( $args['or'] );
+		}
 
 		foreach ( $args as $key => $value ) {
-			$where .= empty( $where ) ? $base_where : $condition;
+			$where          .= empty( $where ) ? $base_where : $condition;
 			$array_inc_null = ( ! is_numeric( $key ) && is_array( $value ) && in_array( null, $value ) );
 			if ( is_numeric( $key ) || $array_inc_null ) {
-				$where .= ' ( ';
+				$where        .= ' ( ';
 				$nested_where = '';
 				if ( $array_inc_null ) {
 					foreach ( $value as $val ) {
@@ -84,28 +88,28 @@ class FrmDb {
 		}
 	}
 
-    /**
-     * @param string $key
+	/**
+	 * @param string $key
 	 * @param string|array $value
-     * @param string $where
+	 * @param string $where
 	 * @param array $values
-     */
-    private static function interpret_array_to_sql( $key, $value, &$where, &$values ) {
+	 */
+	private static function interpret_array_to_sql( $key, $value, &$where, &$values ) {
 		$key = trim( $key );
 
 		if ( strpos( $key, 'created_at' ) !== false || strpos( $key, 'updated_at' ) !== false ) {
-			$k = explode( ' ', $key );
-            $where .= ' DATE_FORMAT(' . reset( $k ) . ', %s) ' . str_replace( reset( $k ), '', $key );
-            $values[] = '%Y-%m-%d %H:%i:%s';
-        } else {
+			$k        = explode( ' ', $key );
+			$where    .= ' DATE_FORMAT(' . reset( $k ) . ', %s) ' . str_replace( reset( $k ), '', $key );
+			$values[] = '%Y-%m-%d %H:%i:%s';
+		} else {
 			$where .= ' ' . $key;
-        }
+		}
 
 		$lowercase_key = explode( ' ', strtolower( $key ) );
 		$lowercase_key = end( $lowercase_key );
 
-        if ( is_array( $value ) ) {
-            // translate array of values to "in"
+		if ( is_array( $value ) ) {
+			// translate array of values to "in"
 			if ( strpos( $lowercase_key, 'like' ) !== false ) {
 				$where = preg_replace( '/' . $key . '$/', '', $where );
 				$where .= '(';
@@ -114,40 +118,40 @@ class FrmDb {
 					if ( ! $start ) {
 						$where .= ' OR ';
 					}
-					$start = false;
-					$where .= $key . ' %s';
+					$start    = false;
+					$where    .= $key . ' %s';
 					$values[] = '%' . self::esc_like( $v ) . '%';
 				}
 				$where .= ')';
-			} else if ( ! empty( $value ) ) {
-				$where .= ' in (' . self::prepare_array_values( $value, '%s' ) . ')';
+			} elseif ( ! empty( $value ) ) {
+				$where  .= ' in (' . self::prepare_array_values( $value, '%s' ) . ')';
 				$values = array_merge( $values, $value );
 			}
-        } else if ( strpos( $lowercase_key, 'like' ) !== false ) {
+		} elseif ( strpos( $lowercase_key, 'like' ) !== false ) {
 			/**
 			 * Allow string to start or end with the value
 			 * If the key is like% then skip the first % for starts with
 			 * If the key is %like then skip the last % for ends with
 			 */
 			$start = '%';
-			$end = '%';
+			$end   = '%';
 			if ( $lowercase_key == 'like%' ) {
 				$start = '';
 				$where = rtrim( $where, '%' );
-			} else if ( $lowercase_key == '%like' ) {
-				$end = '';
+			} elseif ( $lowercase_key == '%like' ) {
+				$end   = '';
 				$where = rtrim( rtrim( $where, '%like' ), '%LIKE' );
 				$where .= 'like';
 			}
 
-			$where .= ' %s';
+			$where    .= ' %s';
 			$values[] = $start . self::esc_like( $value ) . $end;
 
-        } else if ( $value === null ) {
-            $where .= ' IS NULL';
-        } else {
+		} elseif ( $value === null ) {
+			$where .= ' IS NULL';
+		} else {
 			// allow a - to prevent = from being added
-			if ( substr( $key, -1 ) == '-' ) {
+			if ( substr( $key, - 1 ) == '-' ) {
 				$where = rtrim( $where, '-' );
 			} else {
 				$where .= '=';
@@ -155,19 +159,20 @@ class FrmDb {
 
 			self::add_query_placeholder( $key, $value, $where );
 
-            $values[] = $value;
-        }
-    }
+			$values[] = $value;
+		}
+	}
 
 	/**
 	 * Add %d, or %s to query
 	 *
 	 * @since 2.02.05
+	 *
 	 * @param string $key
 	 * @param int|string $value
 	 * @param string $where
 	 */
-    private static function add_query_placeholder( $key, $value, &$where ) {
+	private static function add_query_placeholder( $key, $value, &$where ) {
 		if ( is_numeric( $value ) && ( strpos( $key, 'meta_value' ) === false || strpos( $key, '+0' ) !== false ) ) {
 			$value = $value + 0; // switch string to number
 			$where .= is_float( $value ) ? '%f' : '%d';
@@ -176,16 +181,18 @@ class FrmDb {
 		}
 	}
 
-    /**
-     * @param string $table
+	/**
+	 * @param string $table
 	 * @param array $where
 	 * @param array $args
+	 *
 	 * @return int
-     */
-    public static function get_count( $table, $where = array(), $args = array() ) {
-        $count = self::get_var( $table, $where, 'COUNT(*)', $args );
-        return $count;
-    }
+	 */
+	public static function get_count( $table, $where = array(), $args = array() ) {
+		$count = self::get_var( $table, $where, 'COUNT(*)', $args );
+
+		return (int) $count;
+	}
 
 	/**
 	 * @param string $table
@@ -194,19 +201,24 @@ class FrmDb {
 	 * @param array $args
 	 * @param string $limit
 	 * @param string $type
+	 *
 	 * @return array|null|string|object
 	 */
-    public static function get_var( $table, $where = array(), $field = 'id', $args = array(), $limit = '', $type = 'var' ) {
-        $group = '';
-        self::get_group_and_table_name( $table, $group );
+	public static function get_var( $table, $where = array(), $field = 'id', $args = array(), $limit = '', $type = 'var' ) {
+		$group = '';
+		self::get_group_and_table_name( $table, $group );
 		self::convert_options_to_array( $args, '', $limit );
+		if ( $type === 'var' && ! isset( $args['limit'] ) ) {
+			$args['limit'] = 1;
+		}
 
 		$query = self::generate_query_string_from_pieces( $field, $table, $where, $args );
 
 		$cache_key = self::generate_cache_key( $where, $args, $field, $type );
-		$results = self::check_cache( $cache_key, $group, $query, 'get_' . $type );
-        return $results;
-    }
+		$results   = self::check_cache( $cache_key, $group, $query, 'get_' . $type );
+
+		return $results;
+	}
 
 	/**
 	 * Generate a cache key from the where query, field, type, and other arguments
@@ -222,7 +234,7 @@ class FrmDb {
 	 */
 	private static function generate_cache_key( $where, $args, $field, $type ) {
 		$cache_key = '';
-		$where = FrmAppHelper::array_flatten( $where );
+		$where     = FrmAppHelper::array_flatten( $where );
 		foreach ( $where as $key => $value ) {
 			$cache_key .= $key . '_' . $value;
 		}
@@ -232,64 +244,71 @@ class FrmDb {
 		return $cache_key;
 	}
 
-    /**
-     * @param string $table
-     * @param array $where
+	/**
+	 * @param string $table
+	 * @param array $where
 	 * @param string $field
 	 * @param array $args
 	 * @param string $limit
-	 * @return mixed
-     */
-    public static function get_col( $table, $where = array(), $field = 'id', $args = array(), $limit = '' ) {
-        return self::get_var( $table, $where, $field, $args, $limit, 'col' );
-    }
-
-    /**
-     * @since 2.0
-     * @param string $table
-	 * @param array $where
-	 * @param string $fields
-	 * @param array $args
-	 * @return mixed
-     */
-    public static function get_row( $table, $where = array(), $fields = '*', $args = array() ) {
-        $args['limit'] = 1;
-        return self::get_var( $table, $where, $fields, $args, '', 'row' );
-    }
-
-    /**
-     * Prepare a key/value array before DB call
 	 *
-     * @since 2.0
-     * @param string $table
+	 * @return mixed
+	 */
+	public static function get_col( $table, $where = array(), $field = 'id', $args = array(), $limit = '' ) {
+		return self::get_var( $table, $where, $field, $args, $limit, 'col' );
+	}
+
+	/**
+	 * @since 2.0
+	 *
+	 * @param string $table
 	 * @param array $where
 	 * @param string $fields
 	 * @param array $args
+	 *
 	 * @return mixed
-     */
-    public static function get_results( $table, $where = array(), $fields = '*', $args = array() ) {
-        return self::get_var( $table, $where, $fields, $args, '', 'results' );
-    }
+	 */
+	public static function get_row( $table, $where = array(), $fields = '*', $args = array() ) {
+		$args['limit'] = 1;
+
+		return self::get_var( $table, $where, $fields, $args, '', 'row' );
+	}
+
+	/**
+	 * Prepare a key/value array before DB call
+	 *
+	 * @since 2.0
+	 *
+	 * @param string $table
+	 * @param array $where
+	 * @param string $fields
+	 * @param array $args
+	 *
+	 * @return mixed
+	 */
+	public static function get_results( $table, $where = array(), $fields = '*', $args = array() ) {
+		return self::get_var( $table, $where, $fields, $args, '', 'results' );
+	}
 
 	/**
 	 * Check for like, not like, in, not in, =, !=, >, <, <=, >=
 	 * Return a value to append to the where array key
 	 *
 	 * @param string $where_is
+	 *
 	 * @return string
 	 */
 	public static function append_where_is( $where_is ) {
 		$switch_to = array(
-			'='     => '',
-			'!='    => '!',
-			'<='    => '<',
-			'>='    => '>',
-			'like'  => 'like',
+			'='        => '',
+			'!='       => '!',
+			'<='       => '<',
+			'>='       => '>',
+			'like'     => 'like',
 			'not like' => 'not like',
-			'in'    => '',
-			'not in' => 'not',
-			'like%' => 'like%',
-			'%like' => '%like',
+			'in'       => '',
+			'not in'   => 'not',
+			'like%'    => 'like%',
+			'%like'    => '%like',
 		);
 
 		$where_is = strtolower( $where_is );
@@ -306,56 +325,67 @@ class FrmDb {
 		return '';
 	}
 
-    /**
-     * Get 'frm_forms' from wp_frm_forms or a longer table param that includes a join
-     * Also add the wpdb->prefix to the table if it's missing
-     *
-     * @param string $table
-     * @param string $group
-     */
-    private static function get_group_and_table_name( &$table, &$group ) {
+	/**
+	 * Get 'frm_forms' from wp_frm_forms or a longer table param that includes a join
+	 * Also add the wpdb->prefix to the table if it's missing
+	 *
+	 * @param string $table
+	 * @param string $group
+	 */
+	private static function get_group_and_table_name( &$table, &$group ) {
 		global $wpdb, $wpmuBaseTablePrefix;
 
 		$table_parts = explode( ' ', $table );
-		$group = reset( $table_parts );
-        $group = str_replace( $wpdb->prefix, '', $group );
+		$group       = reset( $table_parts );
+		self::maybe_remove_prefix( $wpdb->prefix, $group );
 
 		$prefix = $wpmuBaseTablePrefix ? $wpmuBaseTablePrefix : $wpdb->base_prefix;
-		$group = str_replace( $prefix, '', $group );
+		self::maybe_remove_prefix( $prefix, $group );
 
-        if ( $group == $table ) {
-            $table = $wpdb->prefix . $table;
-        }
+		if ( $group == $table ) {
+			$table = $wpdb->prefix . $table;
+		}
 
 		// switch to singular group name
 		$group = rtrim( $group, 's' );
-    }
+	}
 
-    private static function convert_options_to_array( &$args, $order_by = '', $limit = '' ) {
+	/**
+	 * Only remove the db prefix when at the beginning.
+	 *
+	 * @since 4.04.02
+	 */
+	private static function maybe_remove_prefix( $prefix, &$name ) {
+		if ( substr( $name, 0, strlen( $prefix ) ) === $prefix ) {
+			$name = substr( $name, strlen( $prefix ) );
+		}
+	}
+
+	private static function convert_options_to_array( &$args, $order_by = '', $limit = '' ) {
 		if ( ! is_array( $args ) ) {
 			$args = array( 'order_by' => $args );
-        }
+		}
 
-        if ( ! empty( $order_by ) ) {
-            $args['order_by'] = $order_by;
-        }
+		if ( ! empty( $order_by ) ) {
+			$args['order_by'] = $order_by;
+		}
 
-        if ( ! empty( $limit ) ) {
-            $args['limit'] = $limit;
-        }
+		if ( ! empty( $limit ) ) {
+			$args['limit'] = $limit;
+		}
 
-        $temp_args = $args;
-        foreach ( $temp_args as $k => $v ) {
-            if ( $v == '' ) {
+		$temp_args = $args;
+		foreach ( $temp_args as $k => $v ) {
+			if ( $v == '' ) {
 				unset( $args[ $k ] );
-                continue;
-            }
+				continue;
+			}
 
-            $db_name = strtoupper( str_replace( '_', ' ', $k ) );
-            if ( strpos( $v, $db_name ) === false ) {
+			$db_name = strtoupper( str_replace( '_', ' ', $k ) );
+			if ( strpos( $v, $db_name ) === false ) {
 				$args[ $k ] = $db_name . ' ' . $v;
-            }
-        }
+			}
+		}
 
 		// Make sure LIMIT is the last argument
 		if ( isset( $args['order_by'] ) && isset( $args['limit'] ) ) {
@@ -363,15 +393,17 @@ class FrmDb {
 			unset( $args['limit'] );
 			$args['limit'] = $temp_limit;
 		}
-    }
+	}
 
 	/**
 	 * Get the associative array results for the given columns, table, and where query
 	 *
 	 * @since 2.02.05
+	 *
 	 * @param string $columns
 	 * @param string $table
 	 * @param array $where
+	 *
 	 * @return mixed
 	 */
 	public static function get_associative_array_results( $columns, $table, $where ) {
@@ -381,7 +413,7 @@ class FrmDb {
 		$query = self::generate_query_string_from_pieces( $columns, $table, $where );
 
 		$cache_key = str_replace( array( ' ', ',' ), '_', trim( implode( '_', FrmAppHelper::array_flatten( $where ) ) . $columns . '_results_ARRAY_A', ' WHERE' ) );
-		$results = self::check_cache( $cache_key, $group, $query, 'get_associative_results' );
+		$results   = self::check_cache( $cache_key, $group, $query, 'get_associative_results' );
 
 		return $results;
 	}
@@ -395,6 +427,7 @@ class FrmDb {
 	 * @param string $table
 	 * @param mixed $where
 	 * @param array $args
+	 *
 	 * @return string
 	 */
 	private static function generate_query_string_from_pieces( $columns, $table, $where, $args = array() ) {
@@ -435,21 +468,24 @@ class FrmDb {
 		}
 	}
 
-    /**
-     * Added for < WP 4.0 compatability
-     *
-     * @since 2.05.06
-     *
-     * @param string $term The value to escape
-     * @return string The escaped value
-     */
+	/**
+	 * Added for < WP 4.0 compatability
+	 *
+	 * @since 2.05.06
+	 *
+	 * @param string $term The value to escape
+	 *
+	 * @return string The escaped value
+	 */
 	public static function esc_like( $term ) {
-        global $wpdb;
+		global $wpdb;
+
 		return $wpdb->esc_like( $term );
-    }
+	}
 
 	/**
 	 * @since 2.05.06
+	 *
 	 * @param string $order_query
 	 */
 	public static function esc_order( $order_query ) {
@@ -465,7 +501,7 @@ class FrmDb {
 
 		$order_query = explode( ' ', trim( $order_query ) );
 
-		$order = trim( reset( $order_query ) );
+		$order      = trim( reset( $order_query ) );
 		$safe_order = array( 'count(*)' );
 		if ( ! in_array( strtolower( $order ), $safe_order ) ) {
 			$order = preg_replace( '/[^a-zA-Z0-9\-\_\.\+]/', '', $order );
@@ -494,6 +530,7 @@ class FrmDb {
 
 	/**
 	 * @param string $limit
+	 *
 	 * @since 2.05.06
 	 */
 	public static function esc_limit( $limit ) {
@@ -514,6 +551,7 @@ class FrmDb {
 		}
 
 		$limit = implode( ',', $limit );
+
 		return ' LIMIT ' . $limit;
 	}
 
@@ -524,6 +562,7 @@ class FrmDb {
 	 */
 	public static function prepare_array_values( $array, $type = '%s' ) {
 		$placeholders = array_fill( 0, count( $array ), $type );
+
 		return implode( ', ', $placeholders );
 	}
 
@@ -555,7 +594,7 @@ class FrmDb {
 	 * @since 2.05.06
 	 */
 	public static function save_settings( $settings, $group ) {
-		$settings = (array) $settings;
+		$settings                 = (array) $settings;
 		$settings['post_content'] = FrmAppHelper::prepare_and_encode( $settings['post_content'] );
 
 		if ( empty( $settings['ID'] ) ) {
@@ -579,7 +618,9 @@ class FrmDb {
 	 */
 	public static function save_json_post( $settings ) {
 		global $wp_filter;
-		$filters = $wp_filter['content_save_pre'];
+		if ( isset( $wp_filter['content_save_pre'] ) ) {
+			$filters = $wp_filter['content_save_pre'];
+		}
 
 		// Remove the balanceTags filter in case WordPress is trying to validate the XHTML
 		remove_all_filters( 'content_save_pre' );
@@ -587,23 +628,34 @@ class FrmDb {
 		$post = wp_insert_post( $settings );
 
 		// add the content filters back for views or posts
-		$wp_filter['content_save_pre'] = $filters;
+		if ( isset( $filters ) ) {
+			$wp_filter['content_save_pre'] = $filters;
+		}
 
 		return $post;
 	}
 
-    /**
-     * Check cache before fetching values and saving to cache
-     *
-     * @since 2.05.06
-     *
-     * @param string $cache_key The unique name for this cache
-     * @param string $group The name of the cache group
-     * @param string $query If blank, don't run a db call
-     * @param string $type The wpdb function to use with this query
-     * @return mixed $results The cache or query results
-     */
+	/**
+	 * Check cache before fetching values and saving to cache
+	 *
+	 * @since 2.05.06
+	 *
+	 * @param string $cache_key The unique name for this cache
+	 * @param string $group The name of the cache group
+	 * @param string $query If blank, don't run a db call
+	 * @param string $type The wpdb function to use with this query
+	 *
+	 * @return mixed $results The cache or query results
+	 */
 	public static function check_cache( $cache_key, $group = '', $query = '', $type = 'get_var', $time = 300 ) {
+		// $results = wp_cache_get( $cache_key, $group );
+		// if ( ! FrmAppHelper::is_empty_value( $results, false ) || empty( $query ) ) {
+		// 	return $results;
+		// }
+		// AJK - block below replaces block above and correctly caches empty results
+		// This is especially important when using frm-stats in views, because the stat actually queryies the db to see if the form has any wp posts associated with it
+		// (form for post creation which we never use) so this was querying the actual DB hundreds of time with something like:
+		// SELECT id, post_id FROM wp_frm_items WHERE form_id=77 AND post_id >=1
 		$found = null;
 		$results = wp_cache_get( $cache_key, $group, false, $found );
 		if ( $found !== false || empty( $query ) ) {
@@ -642,7 +694,7 @@ class FrmDb {
 	 * @since 2.05.06
 	 */
 	public static function add_key_to_group_cache( $key, $group ) {
-		$cached = self::get_group_cached_keys( $group );
+		$cached         = self::get_group_cached_keys( $group );
 		$cached[ $key ] = $key;
 		wp_cache_set( 'cached_keys', $cached, $group, 300 );
 	}
@@ -661,6 +713,7 @@ class FrmDb {
 
 	/**
 	 * @since 2.05.06
+	 *
 	 * @param string $cache_key
 	 */
 	public static function delete_cache_and_transient( $cache_key, $group = 'default' ) {
@@ -668,13 +721,13 @@ class FrmDb {
 		wp_cache_delete( $cache_key, $group );
 	}
 
-    /**
-     * Delete all caching in a single group
-     *
-     * @since 2.05.06
-     *
-     * @param string $group The name of the cache group
-     */
+	/**
+	 * Delete all caching in a single group
+	 *
+	 * @since 2.05.06
+	 *
+	 * @param string $group The name of the cache group
+	 */
 	public static function cache_delete_group( $group ) {
 		$cached_keys = self::get_group_cached_keys( $group );
 
