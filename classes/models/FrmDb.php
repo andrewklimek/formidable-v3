@@ -694,8 +694,9 @@ class FrmDb {
 	 * @since 2.05.06
 	 */
 	public static function add_key_to_group_cache( $key, $group ) {
+		// if ( ! wp_using_ext_object_cache() ) return;// is there ever a cache_delete_group call mid page load?
 		$cached         = self::get_group_cached_keys( $group );
-		$cached[ $key ] = $key;
+		$cached[ $key ] = true;
 		wp_cache_set( 'cached_keys', $cached, $group, 300 );
 	}
 
@@ -732,7 +733,7 @@ class FrmDb {
 		$cached_keys = self::get_group_cached_keys( $group );
 
 		if ( ! empty( $cached_keys ) ) {
-			foreach ( $cached_keys as $key ) {
+			foreach ( $cached_keys as $key => $value ) {
 				wp_cache_delete( $key, $group );
 			}
 
